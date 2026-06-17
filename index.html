@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClientFlow — Task Manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1f2436;
+    --border: #2a2f42;
+    --accent: #6c63ff;
+    --accent-dim: rgba(108, 99, 255, 0.15);
+    --accent-glow: rgba(108, 99, 255, 0.35);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.15);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --text: #e8eaf0;
+    --text-muted: #7a8099;
+    --text-dim: #4a5068;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 36px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    background: rgba(15,17,23,0.85);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.55rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pkt-clock {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .pkt-clock span.tz {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ntfy-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ntfy-badge:hover { border-color: var(--accent); color: var(--text); }
+
+  .ntfy-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+  }
+
+  .ntfy-dot.active { background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.6); }
+
+  /* ── Main Layout ── */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 36px 36px 80px;
+  }
+
+  .page-title {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .page-title h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .page-title p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+  .btn-primary:hover { background: #7c75ff; box-shadow: 0 0 28px var(--accent-glow); transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+
+  .btn-danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid transparent;
+  }
+  .btn-danger:hover { border-color: var(--red); }
+
+  /* ── Client Grid ── */
+  .clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+  }
+
+  /* ── Client Card ── */
+  .client-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .client-card:hover {
+    border-color: #3a3f58;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+
+  .card-header {
+    padding: 20px 22px 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .client-avatar {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: #fff;
+    letter-spacing: 0;
+  }
+
+  .client-info {
+    flex: 1;
+    margin-left: 14px;
+  }
+
+  .client-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .client-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .card-stats {
+    display: flex;
+    gap: 16px;
+    text-align: right;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .stat-num {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+
+  .stat-num.green { color: var(--green); }
+
+  /* ── Task List ── */
+  .tasks-body {
+    padding: 14px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  .tasks-body::-webkit-scrollbar { width: 4px; }
+  .tasks-body::-webkit-scrollbar-track { background: transparent; }
+  .tasks-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .empty-tasks {
+    text-align: center;
+    padding: 28px 0;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    font-style: italic;
+  }
+
+  /* ── Task Row ── */
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: var(--surface2);
+    transition: all 0.3s ease;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .task-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .task-row.done {
+    background: var(--green-dim);
+    border-color: rgba(34,197,94,0.2);
+  }
+  .task-row.done::before { background: var(--green); }
+  .task-row.done .task-name { text-decoration: line-through; color: var(--text-muted); }
+
+  .task-row.overdue {
+    background: var(--red-dim);
+    border-color: rgba(239,68,68,0.2);
+  }
+  .task-row.overdue::before { background: var(--red); }
+
+  .task-row.due-soon {
+    background: var(--amber-dim);
+    border-color: rgba(245,158,11,0.2);
+  }
+  .task-row.due-soon::before { background: var(--amber); }
+
+  .task-checkbox {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    border: 2px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .task-row.done .task-checkbox {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .task-checkbox::after {
+    content: '';
+    width: 5px; height: 9px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(45deg) translate(-1px, -1px);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .task-row.done .task-checkbox::after { opacity: 1; }
+
+  .task-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-name {
+    font-size: 0.83rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s;
+  }
+
+  .task-time-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  .task-time-badge .clock-icon { font-size: 0.65rem; }
+  .task-row.overdue .task-time-badge { color: var(--red); }
+  .task-row.due-soon .task-time-badge { color: var(--amber); }
+  .task-row.done .task-time-badge { color: var(--green); }
+
+  .task-delete {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    opacity: 0;
+    transition: all 0.2s;
+  }
+  .task-row:hover .task-delete { opacity: 1; }
+  .task-delete:hover { color: var(--red); background: var(--red-dim); }
+
+  /* ── Add Task Form ── */
+  .add-task-form {
+    padding: 12px 22px 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .add-task-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .recur-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .recur-toggle.on {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .recur-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 99px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(108,99,255,0.25);
+    flex-shrink: 0;
+  }
+
+  .task-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 13px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .task-input:focus { border-color: var(--accent); }
+  .task-input::placeholder { color: var(--text-dim); }
+
+  .time-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 120px;
+    color-scheme: dark;
+  }
+
+  .time-input:focus { border-color: var(--accent); }
+
+  .add-btn {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .add-btn:hover { background: var(--accent); color: #fff; }
+
+  /* ── Card Footer ── */
+  .card-footer {
+    padding: 12px 22px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-right: 12px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-bar.all-done { background: var(--green); }
+
+  .progress-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 460px;
+    max-width: 92vw;
+    transform: translateY(16px);
+    transition: transform 0.25s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    font-weight: 400;
+    margin-bottom: 6px;
+  }
+
+  .modal p.sub { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 24px; }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-group label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    color-scheme: dark;
+  }
+
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group input::placeholder { color: var(--text-dim); }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+
+  /* ── Notification Toast ── */
+  .toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 13px 18px;
+    max-width: 320px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    animation: slideIn 0.3s ease;
+    pointer-events: all;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+
+  .toast-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+
+  .toast-body { flex: 1; }
+
+  .toast-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .toast-msg { font-size: 0.75rem; color: var(--text-muted); }
+
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.warning { border-left: 3px solid var(--amber); }
+  .toast.info { border-left: 3px solid var(--accent); }
+  .toast.danger { border-left: 3px solid var(--red); }
+
+  @keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    to { transform: translateX(120%); opacity: 0; }
+  }
+
+  /* ── NTFY Settings Modal ── */
+  .ntfy-info {
+    background: var(--accent-dim);
+    border: 1px solid rgba(108,99,255,0.25);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .ntfy-info code {
+    background: rgba(108,99,255,0.2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #a89eff;
+    font-size: 0.76rem;
+  }
+
+  /* ── No Clients Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+
+  .empty-state h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .empty-state p { font-size: 0.85rem; max-width: 320px; margin: 0 auto 24px; }
+
+  /* ── Add Client Card (ghost) ── */
+  .add-client-card {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    min-height: 180px;
+  }
+
+  .add-client-card:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .add-client-card .plus {
+    font-size: 2rem;
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  /* ── Color swatches ── */
+  .color-swatches {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.selected { border-color: #fff; transform: scale(1.15); }
+
+  /* ── Section heading ── */
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    ClientFlow
+  </div>
+  <div class="header-actions">
+    <div class="pkt-clock">
+      <span id="pktClock">--:-- --</span>
+      <span class="tz">PKT</span>
+    </div>
+    <div class="ntfy-badge" onclick="openNtfyModal()">
+      <div class="ntfy-dot" id="ntfyStatusDot"></div>
+      <span id="ntfyStatusLabel">ntfy: not configured</span>
+    </div>
+    <button class="btn btn-primary" onclick="openAddClientModal()">
+      <span>+</span> Add Client
+    </button>
+  </div>
+</header>
+
+<!-- Main -->
+<main>
+  <div class="page-title">
+    <div>
+      <h1>Client Dashboard</h1>
+      <p id="dashSubtitle">Manage your clients and their daily tasks</p>
+    </div>
+  </div>
+  <div class="clients-grid" id="clientsGrid">
+    <!-- injected by JS -->
+  </div>
+</main>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ── Add Client Modal ── -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <h2>Add New Client</h2>
+    <p class="sub">Create a client card to track their daily tasks.</p>
+    <div class="form-group">
+      <label>Client Name</label>
+      <input type="text" id="clientName" placeholder="e.g. Acme Corp" />
+    </div>
+    <div class="form-group">
+      <label>Company / Role (optional)</label>
+      <input type="text" id="clientMeta" placeholder="e.g. Marketing — SEO Project" />
+    </div>
+    <div class="form-group">
+      <label>Card Colour</label>
+      <div class="color-swatches" id="colorSwatches"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeClientModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createClient()">Create Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NTFY Config Modal ── -->
+<div class="modal-overlay" id="ntfyModal">
+  <div class="modal">
+    <h2>ntfy.sh Notifications</h2>
+    <p class="sub">Send task reminders and updates via ntfy.sh — free, open-source push notifications.</p>
+    <div class="ntfy-info">
+      Install the <strong>ntfy</strong> app on your phone, subscribe to your topic, and notifications will arrive when tasks are due, completed, or overdue.<br><br>
+      Your topic URL will be: <code>https://ntfy.sh/<em>your-topic</em></code>
+    </div>
+    <div class="form-group">
+      <label>ntfy Topic Name</label>
+      <input type="text" id="ntfyTopic" placeholder="e.g. clientflow-myname-2024" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeNtfyModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNtfy()">Save & Test</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const COLORS = [
+  '#6c63ff','#3b82f6','#06b6d4','#10b981','#84cc16',
+  '#f59e0b','#f97316','#ef4444','#ec4899','#a855f7'
+];
+
+let clients = JSON.parse(localStorage.getItem('cf_clients') || '[]');
+let ntfyTopic = localStorage.getItem('cf_ntfy') || '';
+let selectedColor = COLORS[0];
+const notifiedTasks = new Set(JSON.parse(localStorage.getItem('cf_notified') || '[]'));
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  buildSwatches();
+  renderAll();
+  updateNtfyBadge();
+  setInterval(checkDeadlines, 30000);   // check every 30s
+  checkDeadlines();                       // immediate check
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  const grid = document.getElementById('clientsGrid');
+  grid.innerHTML = '';
+
+  if (clients.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1">
+        <div class="empty-state">
+          <div class="icon">🗂️</div>
+          <h2>No clients yet</h2>
+          <p>Add your first client to start tracking daily tasks and deadlines.</p>
+          <button class="btn btn-primary" onclick="openAddClientModal()">+ Add Your First Client</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  clients.forEach((client, ci) => {
+    const card = buildClientCard(client, ci);
+    grid.appendChild(card);
+  });
+
+  // add-client ghost card
+  const ghost = document.createElement('div');
+  ghost.className = 'add-client-card';
+  ghost.onclick = openAddClientModal;
+  ghost.innerHTML = `<div class="plus">+</div><span>Add another client</span>`;
+  grid.appendChild(ghost);
+
+  updateSubtitle();
+}
+
+function buildClientCard(client, ci) {
+  const tasks = client.tasks || [];
+  const done = tasks.filter(t => t.done).length;
+  const total = tasks.length;
+  const progress = total ? Math.round((done / total) * 100) : 0;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'client-card';
+  wrap.id = `card-${client.id}`;
+
+  const initials = client.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const overdue = tasks.filter(t => !t.done && isOverdue(t.deadline)).length;
+  const dueSoon = tasks.filter(t => !t.done && isDueSoon(t.deadline)).length;
+
+  wrap.innerHTML = `
+    <div class="card-header">
+      <div class="client-avatar" style="background:${client.color}">${initials}</div>
+      <div class="client-info">
+        <div class="client-name">${esc(client.name)}</div>
+        <div class="client-meta">${esc(client.meta || 'No description')}</div>
+      </div>
+      <div class="card-stats">
+        <div>
+          <span class="stat-num green">${done}</span>
+          done
+        </div>
+        <div>
+          <span class="stat-num">${total}</span>
+          total
+        </div>
+        <div style="cursor:pointer;color:var(--text-dim);font-size:1rem;padding:2px 0 0 6px"
+             onclick="deleteClient('${client.id}')" title="Remove client">×</div>
+      </div>
+    </div>
+
+    <div class="tasks-body" id="tasks-${client.id}">
+      ${tasks.length === 0
+        ? `<div class="empty-tasks">No tasks yet — add one below</div>`
+        : tasks.map(t => buildTaskHTML(t)).join('')}
+    </div>
+
+    <div class="add-task-form">
+      <div class="add-task-row">
+        <input class="task-input" id="taskInput-${client.id}"
+               placeholder="Write a task…"
+               onkeydown="if(event.key==='Enter') addTask('${client.id}')"/>
+        <input class="time-input" type="time" id="timeInput-${client.id}" />
+        <div class="recur-toggle" id="recurToggle-${client.id}"
+             onclick="toggleRecur('${client.id}')" title="Toggle daily recurrence">
+          ↻ Daily
+        </div>
+        <button class="add-btn" onclick="addTask('${client.id}')">Add</button>
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar ${progress === 100 ? 'all-done' : ''}"
+             style="width:${progress}%"></div>
+      </div>
+      <div class="progress-label">${progress}% complete</div>
+    </div>
+  `;
+
+  return wrap;
+}
+
+function buildTaskHTML(t) {
+  let cls = '';
+  let statusText = '';
+  const dl = t.deadline;
+
+  if (t.done) {
+    cls = 'done';
+    statusText = `✓ Completed${dl ? ' · due ' + fmtTime(dl) : ''}`;
+  } else if (dl && isOverdue(dl)) {
+    cls = 'overdue';
+    statusText = `⚠ Overdue · was ${fmtTime(dl)}`;
+  } else if (dl && isDueSoon(dl)) {
+    cls = 'due-soon';
+    statusText = `⏰ Due at ${fmtTime(dl)}`;
+  } else if (dl) {
+    statusText = `🕐 Due at ${fmtTime(dl)}`;
+  } else {
+    statusText = 'No deadline set';
+  }
+
+  const recurBadge = t.recurring ? `<span class="recur-badge">↻ Daily</span>` : '';
+
+  return `
+    <div class="task-row ${cls}" id="task-${t.id}">
+      <div class="task-checkbox" onclick="toggleTask('${t.id}')"></div>
+      <div class="task-content">
+        <div class="task-name">${esc(t.name)}</div>
+        <div class="task-time-badge">
+          <span class="clock-icon">◷</span>
+          <span>${statusText}</span>
+        </div>
+      </div>
+      ${recurBadge}
+      <button class="task-delete" onclick="deleteTask('${t.id}')" title="Delete">✕</button>
+    </div>
+  `;
+}
+
+// ─── Client Actions ───────────────────────────────────────────────────────────
+function openAddClientModal() {
+  document.getElementById('clientName').value = '';
+  document.getElementById('clientMeta').value = '';
+  selectedColor = COLORS[0];
+  document.querySelectorAll('.swatch').forEach((s,i) => s.classList.toggle('selected', i===0));
+  document.getElementById('clientModal').classList.add('open');
+  setTimeout(() => document.getElementById('clientName').focus(), 100);
+}
+
+function closeClientModal() {
+  document.getElementById('clientModal').classList.remove('open');
+}
+
+function createClient() {
+  const name = document.getElementById('clientName').value.trim();
+  if (!name) { document.getElementById('clientName').focus(); return; }
+  const client = {
+    id: uid(),
+    name,
+    meta: document.getElementById('clientMeta').value.trim(),
+    color: selectedColor,
+    tasks: [],
+    createdAt: Date.now()
+  };
+  clients.push(client);
+  save();
+  renderAll();
+  closeClientModal();
+  toast(`Client "${name}" added`, '', 'success');
+}
+
+function deleteClient(cid) {
+  if (!confirm('Remove this client and all their tasks?')) return;
+  clients = clients.filter(c => c.id !== cid);
+  save();
+  renderAll();
+}
+
+// track per-card recurring toggle state
+const recurState = {};
+
+function toggleRecur(cid) {
+  recurState[cid] = !recurState[cid];
+  const el = document.getElementById(`recurToggle-${cid}`);
+  if (el) el.classList.toggle('on', recurState[cid]);
+}
+
+// ─── Task Actions ─────────────────────────────────────────────────────────────
+function addTask(cid) {
+  const nameEl = document.getElementById(`taskInput-${cid}`);
+  const timeEl = document.getElementById(`timeInput-${cid}`);
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+
+  let deadline = null;
+  if (timeEl.value) {
+    // The user types a time intending PKT — build a Date in PKT then get its UTC ms
+    const [h, m] = timeEl.value.split(':').map(Number);
+    const { year, month, day } = pktDateComponents();
+    // Create a UTC timestamp that corresponds to HH:MM in PKT (UTC+5)
+    const pktMidnight = Date.UTC(year, month, day) - PKT_OFFSET_MS; // midnight PKT in UTC ms
+    deadline = pktMidnight + (h * 60 + m) * 60000;
+  }
+
+  const recurring = !!recurState[cid];
+  const client = clients.find(c => c.id === cid);
+  const task = { id: uid(), name, deadline, done: false, recurring, createdAt: Date.now() };
+  client.tasks.push(task);
+  save();
+  renderCard(cid);
+  nameEl.value = '';
+  timeEl.value = '';
+  // reset toggle UI but keep state so user can batch-add recurring tasks
+  nameEl.focus();
+
+  if (deadline) {
+    const mins = Math.round((deadline - Date.now()) / 60000);
+    if (mins > 0) {
+      toast(`Task added`, `"${name}" due in ${mins} min${recurring ? ' · repeats daily' : ''}`, 'info');
+    }
+    sendNtfy(`📋 Task Added — ${client.name}`, `"${name}" is due at ${fmtTime(deadline)}${recurring ? ' (daily)' : ''}`, 'low');
+  }
+}
+
+function toggleTask(tid) {
+  let found, client;
+  clients.forEach(c => {
+    const t = c.tasks.find(t => t.id === tid);
+    if (t) { found = t; client = c; }
+  });
+  if (!found) return;
+
+  found.done = !found.done;
+  found.completedAt = found.done ? Date.now() : null;
+  save();
+  renderCard(client.id);
+
+  if (found.done) {
+    toast(`Task complete! ✓`, `"${found.name}"`, 'success');
+    sendNtfy(`✅ Task Done — ${client.name}`, `"${found.name}" has been marked complete.`, 'default');
+  } else {
+    toast(`Task reopened`, `"${found.name}"`, 'info');
+  }
+}
+
+function deleteTask(tid) {
+  clients.forEach(c => { c.tasks = c.tasks.filter(t => t.id !== tid); });
+  save();
+  renderAll();
+}
+
+// ─── Partial re-render of a single card ──────────────────────────────────────
+function renderCard(cid) {
+  const client = clients.find(c => c.id === cid);
+  const ci = clients.indexOf(client);
+  const existing = document.getElementById(`card-${cid}`);
+  if (!existing) { renderAll(); return; }
+  const newCard = buildClientCard(client, ci);
+  existing.replaceWith(newCard);
+  updateSubtitle();
+}
+
+// ─── Deadline Checker ─────────────────────────────────────────────────────────
+function checkDeadlines() {
+  const now = Date.now();
+
+  // ── Recurring reset: check if we've crossed PKT midnight since last reset ──
+  const todayPKT = pktDayStamp(); // "YYYY-MM-DD" in PKT
+  const lastReset = localStorage.getItem('cf_last_reset') || '';
+  if (lastReset !== todayPKT) {
+    let resetCount = 0;
+    clients.forEach(client => {
+      (client.tasks || []).forEach(task => {
+        if (!task.recurring) return;
+        if (task.done) {
+          task.done = false;
+          task.completedAt = null;
+          resetCount++;
+        }
+        // Advance deadline by 24h if it's in the past
+        if (task.deadline && task.deadline < now) {
+          task.deadline += 86400000; // +24h
+          // Clear old notification keys so alerts fire again today
+          notifiedTasks.delete(`5m-${task.id}`);
+          notifiedTasks.delete(`od-${task.id}`);
+        }
+      });
+    });
+    if (resetCount > 0) {
+      save();
+      persistNotified();
+      toast(`↻ Daily tasks reset`, `${resetCount} recurring task${resetCount !== 1 ? 's' : ''} refreshed for today`, 'info');
+      sendNtfy('↻ Daily Reset', `${resetCount} recurring task${resetCount !== 1 ? 's' : ''} have been reset for today.`, 'default');
+    }
+    localStorage.setItem('cf_last_reset', todayPKT);
+  }
+
+  clients.forEach(client => {
+    (client.tasks || []).forEach(task => {
+      if (task.done || !task.deadline) return;
+      const msUntil = task.deadline - now;
+      const key5 = `5m-${task.id}`;
+      const keyOD = `od-${task.id}`;
+
+      // 5-min warning (between 4.5 and 5.5 mins)
+      if (msUntil > 0 && msUntil < 330000 && msUntil > 210000 && !notifiedTasks.has(key5)) {
+        notifiedTasks.add(key5);
+        persistNotified();
+        toast(`⏰ Due in 5 mins!`, `"${task.name}" — ${client.name}`, 'warning');
+        sendNtfy(`⏰ Due Soon — ${client.name}`, `"${task.name}" is due in 5 minutes!`, 'high');
+      }
+
+      // Overdue alert (just passed)
+      if (msUntil < 0 && msUntil > -65000 && !notifiedTasks.has(keyOD)) {
+        notifiedTasks.add(keyOD);
+        persistNotified();
+        toast(`🔴 Overdue!`, `"${task.name}" — ${client.name}`, 'danger');
+        sendNtfy(`🔴 Task Overdue — ${client.name}`, `"${task.name}" was due at ${fmtTime(task.deadline)} and is now overdue!`, 'urgent');
+      }
+    });
+  });
+  // refresh visual states every 30s
+  document.querySelectorAll('.client-card').forEach(card => {
+    const cid = card.id.replace('card-','');
+    renderCard(cid);
+  });
+}
+
+function isOverdue(deadline) { return deadline && Date.now() > deadline; }
+function isDueSoon(deadline) {
+  if (!deadline) return false;
+  const diff = deadline - Date.now();
+  return diff > 0 && diff < 600000; // within 10 min
+}
+
+// ─── ntfy.sh ─────────────────────────────────────────────────────────────────
+function openNtfyModal() {
+  document.getElementById('ntfyTopic').value = ntfyTopic;
+  document.getElementById('ntfyModal').classList.add('open');
+  setTimeout(() => document.getElementById('ntfyTopic').focus(), 100);
+}
+
+function closeNtfyModal() {
+  document.getElementById('ntfyModal').classList.remove('open');
+}
+
+function saveNtfy() {
+  const val = document.getElementById('ntfyTopic').value.trim().replace(/[^a-zA-Z0-9\-_]/g, '');
+  if (!val) { document.getElementById('ntfyTopic').focus(); return; }
+  ntfyTopic = val;
+  localStorage.setItem('cf_ntfy', val);
+  updateNtfyBadge();
+  closeNtfyModal();
+  // send a test ping
+  sendNtfy('🔔 ClientFlow Connected', `Notifications are live on topic: ${val}`, 'default', true);
+}
+
+async function sendNtfy(title, message, priority = 'default', isTest = false) {
+  if (!ntfyTopic) return;
+  const priorityMap = { low: 2, default: 3, high: 4, urgent: 5 };
+  try {
+    await fetch(`https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Title': title,
+        'Priority': String(priorityMap[priority] || 3),
+      },
+      body: message
+    });
+    if (isTest) toast('ntfy connected ✓', `Test sent to topic: ${ntfyTopic}`, 'success');
+  } catch (e) {
+    if (isTest) toast('ntfy error', 'Could not reach ntfy.sh — check your connection', 'danger');
+  }
+}
+
+function updateNtfyBadge() {
+  const dot = document.getElementById('ntfyStatusDot');
+  const label = document.getElementById('ntfyStatusLabel');
+  if (ntfyTopic) {
+    dot.classList.add('active');
+    label.textContent = `ntfy: ${ntfyTopic}`;
+  } else {
+    dot.classList.remove('active');
+    label.textContent = 'ntfy: not configured';
+  }
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(title, msg, type = 'info') {
+  const icons = { success:'✅', warning:'⏰', info:'💬', danger:'🔴' };
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `
+    <div class="toast-icon">${icons[type] || '💬'}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      ${msg ? `<div class="toast-msg">${msg}</div>` : ''}
+    </div>
+  `;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'fadeOut 0.3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 4500);
+}
+
+// ─── Swatches ─────────────────────────────────────────────────────────────────
+function buildSwatches() {
+  const wrap = document.getElementById('colorSwatches');
+  COLORS.forEach((c, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (i === 0 ? ' selected' : '');
+    s.style.background = c;
+    s.onclick = () => {
+      selectedColor = c;
+      document.querySelectorAll('.swatch').forEach(sw => sw.classList.remove('selected'));
+      s.classList.add('selected');
+    };
+    wrap.appendChild(s);
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/** Format a UTC timestamp as HH:MM AM/PM PKT */
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Karachi',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+/** Get the current date components in PKT so we can build a deadline correctly */
+function pktDateComponents() {
+  // Format as YYYY-MM-DD in PKT
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const get = type => parseInt(parts.find(p => p.type === type).value, 10);
+  return { year: get('year'), month: get('month') - 1, day: get('day') };
+}
+
+/** Returns today's date as "YYYY-MM-DD" in PKT — used to detect day change */
+function pktDayStamp() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date());
+}
+
+/** Tick the live PKT clock in the header */
+function tickClock() {
+  const el = document.getElementById('pktClock');
+  if (el) el.textContent = fmtTime(Date.now());
+}
+function save() { localStorage.setItem('cf_clients', JSON.stringify(clients)); }
+function persistNotified() {
+  localStorage.setItem('cf_notified', JSON.stringify([...notifiedTasks].slice(-200)));
+}
+function updateSubtitle() {
+  const total = clients.reduce((a,c) => a + c.tasks.length, 0);
+  const done = clients.reduce((a,c) => a + c.tasks.filter(t=>t.done).length, 0);
+  const overdue = clients.reduce((a,c) => a + c.tasks.filter(t=>!t.done && isOverdue(t.deadline)).length, 0);
+  document.getElementById('dashSubtitle').textContent =
+    `${clients.length} client${clients.length!==1?'s':''} · ${done}/${total} tasks done${overdue ? ` · ${overdue} overdue` : ''}`;
+}
+
+// Close modals on overlay click
+['clientModal','ntfyModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+tickClock();
+setInterval(tickClock, 1000);
+</script>
+</body>
+</html>
